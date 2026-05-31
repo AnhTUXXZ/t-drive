@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TeleDrive Pro - Cloud Enterprise</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
+    <style>
+        :root { --primary: #2AABEE; --bg: #f0f2f5; --card-bg: #ffffff; }
+        body { background-color: var(--bg); font-family: "Segoe UI", Roboto, Arial, sans-serif; padding-bottom: 30px; }
+        
+        .app-header { background: var(--card-bg); padding: 15px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .app-header h4 { margin: 0; font-weight: 700; color: var(--primary); }
+        
+        @keyframes bounceUp { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        @keyframes bounceDown { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        .anim-up { display: inline-block; animation: bounceUp 1.5s ease-in-out infinite; }
+        .anim-down { display: inline-block; animation: bounceDown 1.5s ease-in-out infinite; }
+        .anim-pulse { animation: pulse 1.5s infinite; }
+        
+        .upload-card { background: var(--card-bg); border-radius: 20px; padding: 40px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; border: 2px dashed #dcdde1; transition: border 0.3s; }
+        .upload-icon { font-size: 4rem; color: var(--primary); margin-bottom: 15px; }
+        .custom-file-input { display: none; }
+        .custom-file-label { display: inline-block; background: var(--primary); color: #fff; padding: 12px 25px; border-radius: 12px; font-weight: 600; cursor: pointer; width: 100%; box-shadow: 0 4px 10px rgba(42,171,238,0.3); }
+        
+        .category-filters { display: flex; overflow-x: auto; gap: 10px; padding-bottom: 10px; margin-bottom: 15px; }
+        .category-filters::-webkit-scrollbar { display: none; }
+        .filter-btn { background: #e9ecef; border: none; padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; color: #495057; white-space: nowrap; cursor: pointer; transition: all 0.2s; }
+        .filter-btn.active { background: var(--primary); color: white; box-shadow: 0 4px 10px rgba(42,171,238,0.3); }
+        
+        .folder-header { background: #f8f9fa; padding: 12px 20px; border-radius: 12px; cursor: pointer; font-weight: 700; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #e9ecef; color: #2c3e50; transition: background 0.2s; user-select: none; }
+        .folder-header:hover { background: #e2e6ea; }
+        .folder-content { padding-left: 20px; border-left: 2px dashed #dcdde1; margin-left: 10px; margin-bottom: 25px; display: block; }
+        
+        .file-card { background: var(--card-bg); border-radius: 16px; padding: 15px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; align-items: center; transition: transform 0.2s; }
+        .file-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .file-icon-wrapper { width: 50px; height: 50px; border-radius: 12px; background: #eef7fd; color: var(--primary); display: flex; justify-content: center; align-items: center; font-size: 1.5rem; margin-right: 15px; overflow: hidden; cursor: pointer; flex-shrink: 0;}
+        .file-info { flex-grow: 1; overflow: hidden; }
+        .file-title { margin: 0; font-weight: 600; font-size: 0.95rem; color: #2c3e50; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .file-size { margin: 0; font-size: 0.8rem; color: #95a5a6; }
+        
+        .action-btn { background: #e8f4fd; color: var(--primary); border: none; border-radius: 50%; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; text-decoration: none; font-size: 1.1rem; cursor: pointer; margin-left: 5px; transition: background 0.2s; }
+        .btn-view { background: #fff3cd; color: #ffc107; }
+        .btn-view:hover { background: #ffc107; color: white; }
+        .btn-share { background: #e2e3e5; color: #6c757d; }
+        .btn-share:hover { background: #6c757d; color: white; }
+        
+        .mobile-nav { display: flex; margin: 15px; background: #e9ecef; border-radius: 12px; padding: 5px; }
+        .mobile-nav .nav-item { flex: 1; text-align: center; }
+        .mobile-nav .nav-link { border-radius: 10px; color: #6c757d; font-weight: 600; padding: 10px 0; border: none; background: transparent; width: 100%; }
+        .mobile-nav .nav-link.active { background-color: #fff; color: var(--primary); }
+        
+        .app-layout { padding: 15px; }
+        @media (max-width: 767px) {
+            .app-layout { display: block; } .col-upload { display: none; } .col-upload.active { display: block; } .col-files { display: none; } .col-files.active { display: block; }
+        }
+        @media (min-width: 768px) {
+            .mobile-nav { display: none; }
+            .app-layout { display: flex; gap: 25px; padding: 30px 50px; max-width: 1200px; margin: 0 auto; }
+            .col-upload { display: block !important; flex: 0 0 35%; max-width: 35%; }
+            .col-files { display: block !important; flex: 0 0 65%; max-width: 65%; }
+        }
+
+        #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); backdrop-filter: blur(5px); z-index: 9999; display: none; justify-content: center; align-items: center; }
+        
+        #loginScreen { background: var(--bg); position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 99999; display: flex; justify-content: center; align-items: center; }
+    </style>
+</head>
+<body>
+
+    <div id="loginScreen">
+        <div class="text-center p-5 bg-white shadow-lg" style="border-radius: 25px; width: 90%; max-width: 400px;">
+            <i class="fa-brands fa-telegram text-primary mb-3 anim-up" style="font-size: 5rem;"></i>
+            <h2 class="fw-bold mb-2">TeleDrive Pro</h2>
+            <p class="text-muted mb-4 small">Lưu trữ cá nhân bảo mật</p>
+            
+            <div id="g_id_onload"
+                 data-client_id="829252739717-r14agg3s6tgrvtfhfoc0affsdvf3arq9.apps.googleusercontent.com"
+                 data-context="signin"
+                 data-ux_mode="popup"
+                 data-callback="handleGoogleLogin"
+                 data-auto_prompt="false">
+            </div>
+            <div class="g_id_signin d-flex justify-content-center" data-type="standard" data-shape="rectangular" data-theme="outline" data-text="signin_with" data-size="large" data-logo_alignment="left"></div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="registerModal" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 20px;">
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title fw-bold text-primary"><i class="fa-solid fa-user-plus"></i> Đăng ký thành viên mới</h5>
+          </div>
+          <div class="modal-body">
+            <p class="text-muted small">Tài khoản Google của bạn chưa có trong hệ thống. Vui lòng điền tên để quản trị viên phê duyệt không gian lưu trữ của bạn.</p>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Email của bạn</label>
+                <input type="text" id="regEmail" class="form-control bg-light" readonly>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Họ và Tên</label>
+                <input type="text" id="regName" class="form-control" placeholder="Ví dụ: Nguyễn Anh Tú" required>
+            </div>
+            <button type="button" class="btn btn-primary w-100 fw-bold" style="border-radius: 10px;" onclick="submitRegistration()">Xác nhận Đăng ký</button>
+            <button type="button" class="btn btn-link w-100 mt-2 text-muted" onclick="window.location.reload()">Hủy bỏ</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="mainApp" style="display: none;">
+        <div class="app-header">
+            <div>
+                <h4><i class="fa-brands fa-telegram"></i> TeleDrive</h4>
+                <small class="text-muted" id="userEmailDisplay"></small>
+            </div>
+            <div>
+                <button onclick="fetchFiles()" class="btn btn-light rounded-circle me-2"><i class="fa-solid fa-rotate-right"></i></button>
+                <button onclick="logout()" class="btn btn-outline-danger btn-sm" style="border-radius: 20px;"><i class="fa-solid fa-right-from-bracket"></i> Ra</button>
+            </div>
+        </div>
+
+        <div class="container mt-3" id="alertContainer" style="display: none; position: fixed; top: 10px; right: 10px; z-index: 1050;">
+            <div class="alert alert-info shadow-sm" role="alert" style="border-radius: 12px;">
+                <span id="alertMessage"></span>
+            </div>
+        </div>
+
+        <div class="mobile-nav">
+            <div class="nav-item">
+                <button class="nav-link active" onclick="switchTab('files', this)"><i class="fa-solid fa-folder-open"></i> Kho File</button>
+            </div>
+            <div class="nav-item">
+                <button class="nav-link" onclick="switchTab('upload', this)"><i class="fa-solid fa-cloud-arrow-up"></i> Tải Lên</button>
+            </div>
+        </div>
+
+        <div class="app-layout">
+            <div class="col-upload" id="tab-upload">
+                <div class="upload-card">
+                    <i class="fa-solid fa-arrow-up anim-up upload-icon"></i>
+                    <h4 class="fw-bold mt-2">Đẩy Lên Mây</h4>
+                    
+                    <form id="uploadForm" onsubmit="handleUpload(event)">
+                        <div class="mb-3 text-start">
+                            <label class="form-label text-muted small fw-bold">Tạo hoặc Đưa vào Thư mục</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="fa-solid fa-folder-plus"></i></span>
+                                <input type="text" id="folder_name" class="form-control" placeholder="VD: Tai Lieu">
+                            </div>
+                        </div>
+                        <input type="file" id="file" class="custom-file-input" required onchange="updateFileName()">
+                        <label for="file" class="custom-file-label" id="file-label">
+                            <i class="fa-solid fa-plus"></i> Chọn File...
+                        </label>
+                        <button type="submit" class="btn btn-dark w-100 mt-3 d-none" id="submit-btn" style="border-radius: 12px; padding: 12px;">Bắt đầu tải lên</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-files active" id="tab-files">
+                <div class="category-filters">
+                    <button class="filter-btn active" onclick="filterCategory('all', this)">Tất cả</button>
+                    <button class="filter-btn" onclick="filterCategory('image', this)">📸 Ảnh</button>
+                    <button class="filter-btn" onclick="filterCategory('video', this)">🎬 Video</button>
+                    <button class="filter-btn" onclick="filterCategory('audio', this)">🎵 Nhạc</button>
+                    <button class="filter-btn" onclick="filterCategory('document', this)">📄 Tài liệu</button>
+                    <button class="filter-btn" onclick="filterCategory('archive', this)">📦 Nén</button>
+                    <button class="filter-btn" onclick="filterCategory('other', this)">⚙️ Khác</button>
+                </div>
+                
+                <div class="file-list-container mt-3" id="fileList">
+                    <p class="text-center mt-5 text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải dữ liệu từ Server...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content bg-transparent border-0" style="height: 90vh;">
+          <div class="modal-header border-0 pb-0 justify-content-end">
+            <button type="button" class="btn btn-light rounded-circle shadow" data-bs-dismiss="modal" onclick="clearPreview()"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <div class="modal-body text-center h-100 d-flex flex-column align-items-center justify-content-center" id="previewContainer"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="downloadPrepModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 20px; text-align: center; padding: 30px;">
+            <i class="fa-solid fa-cloud-arrow-down text-primary anim-pulse" style="font-size: 4rem; margin-bottom: 20px;"></i>
+            <h4 class="fw-bold">Đang kết nối tới máy chủ...</h4>
+            <p class="text-muted mb-0">Quá trình tải xuống sẽ bắt đầu trong giây lát.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="loadingOverlay">
+        <div class="text-center bg-white p-4 rounded-4 shadow">
+            <i class="fa-solid fa-cloud-arrow-up anim-up text-primary" style="font-size: 3rem;"></i>
+            <h5 class="fw-bold mt-3 text-primary">Đang đẩy lên mây...</h5>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const API_BASE = ""; 
+        let currentCategory = 'all';
+        let tempRegisterEmail = '';
+
+        document.addEventListener("DOMContentLoaded", () => {
+            if (getToken()) {
+                showApp();
+                fetchFiles();
+            } else {
+                document.getElementById('loginScreen').style.display = 'flex';
+                document.getElementById('mainApp').style.display = 'none';
+            }
+        });
+
+        function getToken() { return localStorage.getItem('teledrive_token') || ''; }
+        function getUserEmail() { return localStorage.getItem('teledrive_email') || ''; }
+
+        function showApp() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            document.getElementById('userEmailDisplay').innerText = getUserEmail();
+        }
+
+        async function handleGoogleLogin(response) {
+            try {
+                let res = await fetch(`${API_BASE}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ credential: response.credential })
+                });
+                let data = await res.json();
+                
+                if (data.success) {
+                    localStorage.setItem('teledrive_token', data.token);
+                    localStorage.setItem('teledrive_email', data.email);
+                    showApp();
+                    showAlert(`👋 Chào mừng ${data.name}!`);
+                    fetchFiles();
+                } else if (data.requires_registration) {
+                    // HIỆN POPUP ĐĂNG KÝ
+                    tempRegisterEmail = data.email;
+                    document.getElementById('regEmail').value = data.email;
+                    new bootstrap.Modal(document.getElementById('registerModal')).show();
+                } else {
+                    alert(`Lỗi: ${data.error}`);
+                }
+            } catch (err) { alert("Lỗi kết nối đến máy chủ đăng nhập!"); }
+        }
+
+        async function submitRegistration() {
+            let name = document.getElementById('regName').value.trim();
+            if (!name) { alert("Vui lòng điền họ tên!"); return; }
+            
+            try {
+                let res = await fetch(`${API_BASE}/api/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: tempRegisterEmail, name: name })
+                });
+                let data = await res.json();
+                if (data.success) {
+                    localStorage.setItem('teledrive_token', data.token);
+                    localStorage.setItem('teledrive_email', data.email);
+                    
+                    // Tắt Modal Đăng ký
+                    bootstrap.Modal.getInstance(document.getElementById('registerModal')).hide();
+                    showApp();
+                    showAlert(`🎉 Đăng ký thành công! Chào ${data.name}.`);
+                    fetchFiles();
+                } else {
+                    alert(`Lỗi đăng ký: ${data.error}`);
+                }
+            } catch (err) { alert("Lỗi kết nối server!"); }
+        }
+
+        function logout() {
+            localStorage.removeItem('teledrive_token');
+            localStorage.removeItem('teledrive_email');
+            window.location.reload();
+        }
+
+        async function fetchFiles() {
+            const listDiv = document.getElementById('fileList');
+            listDiv.innerHTML = '<p class="text-center mt-5 text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải dữ liệu của bạn...</p>';
+            
+            try {
+                let res = await fetch(`${API_BASE}/api/files?t=` + new Date().getTime(), {
+                    headers: { 'Authorization': 'Bearer ' + getToken() }
+                });
+                if (res.status === 401) { logout(); return; }
+                let data = await res.json();
+                if(!data.success) throw new Error(data.error);
+
+                if(data.files.length === 0) {
+                    listDiv.innerHTML = `<div class="text-center mt-5"><i class="fa-solid fa-box-open text-muted" style="font-size: 4rem;"></i><p class="text-muted mt-3">Không có dữ liệu của bạn.</p></div>`;
+                    return;
+                }
+
+                let foldersMap = {};
+                data.files.forEach(f => {
+                    let folderName = f.folder || 'Root';
+                    if(!foldersMap[folderName]) foldersMap[folderName] = [];
+                    foldersMap[folderName].push(f);
+                });
+
+                listDiv.innerHTML = '';
+                for (const [folderName, filesInFolder] of Object.entries(foldersMap)) {
+                    let safeId = 'folder_' + folderName.replace(/\s+/g, '_');
+                    
+                    let folderHtml = `
+                        <div class="folder-header" onclick="toggleFolder('${safeId}', this)">
+                            <span><i class="fa-solid fa-folder text-warning me-2"></i> ${folderName} <span class="badge bg-secondary ms-2">${filesInFolder.length}</span></span>
+                            <i class="fa-solid fa-chevron-down toggle-icon"></i>
+                        </div>
+                        <div class="folder-content" id="${safeId}">
+                    `;
+
+                    filesInFolder.forEach(f => {
+                        let ext = f.name.split('.').pop().toLowerCase();
+                        let iconHtml = `<i class="fa-solid fa-file"></i>`;
+                        let thumbUrl = `${API_BASE}/api/thumbnail/${f.id}?token=${getToken()}`;
+                        let viewUrl = `${API_BASE}/api/view/${f.id}?token=${getToken()}`;
+                        let downloadUrl = `${API_BASE}/api/download/${f.id}?token=${getToken()}`;
+
+                        if(f.category === 'image') iconHtml = `<img src="${thumbUrl}" style="width:100%; height:100%; object-fit:cover;">`;
+                        else if(f.category === 'video') iconHtml = `<i class="fa-solid fa-file-video text-info"></i>`;
+                        else if(f.category === 'audio') iconHtml = `<i class="fa-solid fa-file-audio text-warning"></i>`;
+                        else if(f.category === 'pdf') iconHtml = `<i class="fa-solid fa-file-pdf text-danger"></i>`;
+                        else if(f.category === 'word') iconHtml = `<i class="fa-solid fa-file-word text-primary"></i>`;
+                        else if(f.category === 'excel') iconHtml = `<i class="fa-solid fa-file-excel text-success"></i>`;
+                        else if(f.category === 'powerpoint') iconHtml = `<i class="fa-solid fa-file-powerpoint text-warning"></i>`;
+                        else if(f.category === 'code') iconHtml = `<i class="fa-solid fa-file-code text-secondary"></i>`;
+                        else if(f.category === 'archive') iconHtml = `<i class="fa-solid fa-file-zipper text-secondary"></i>`;
+                        else if(f.category === 'app' && ext === 'apk') iconHtml = `<i class="fa-brands fa-android text-success"></i>`;
+                        else if(f.category === 'app') iconHtml = `<i class="fa-brands fa-windows text-primary"></i>`;
+
+                        let previewType = '';
+                        if(f.category === 'image') previewType = 'image';
+                        else if(f.category === 'video') previewType = 'video';
+                        else if(f.category === 'audio') previewType = 'audio';
+                        else if(['pdf', 'code'].includes(f.category)) previewType = 'iframe';
+                        
+                        let onClickPreview = previewType ? `onclick="showPreview('${viewUrl}', '${previewType}')"` : '';
+
+                        let viewBtn = '';
+                        if(previewType) {
+                            viewBtn = `<button onclick="showPreview('${viewUrl}', '${previewType}')" class="action-btn btn-view" title="Xem trước"><i class="fa-solid fa-eye"></i></button>`;
+                        } else {
+                            viewBtn = `<a href="${viewUrl}" target="_blank" class="action-btn btn-view" title="Mở file"><i class="fa-solid fa-eye"></i></a>`;
+                        }
+
+                        let shareBtn = `<button onclick="copyShareLink('${viewUrl}')" class="action-btn btn-share" title="Copy Link Chia Sẻ"><i class="fa-solid fa-link"></i></button>`;
+
+                        folderHtml += `
+                            <div class="file-card file-item" data-category="${f.category}">
+                                <div class="file-icon-wrapper" ${onClickPreview}>${iconHtml}</div>
+                                <div class="file-info">
+                                    <p class="file-title">${f.name}</p>
+                                    <p class="file-size">${f.size_readable} • ${f.date}</p>
+                                </div>
+                                ${shareBtn}
+                                ${viewBtn}
+                                <button onclick="prepareDownload('${downloadUrl}')" class="action-btn" title="Tải xuống"><i class="fa-solid fa-arrow-down anim-down"></i></button>
+                            </div>
+                        `;
+                    });
+                    
+                    folderHtml += `</div>`;
+                    listDiv.innerHTML += folderHtml;
+                }
+                applyCategoryFilter();
+            } catch (err) {
+                listDiv.innerHTML = `<p class="text-center mt-5 text-danger">❌ Lỗi kết nối: ${err.message}</p>`;
+            }
+        }
+
+        function toggleFolder(folderId, headerElem) {
+            let content = document.getElementById(folderId);
+            let icon = headerElem.querySelector('.toggle-icon');
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                icon.classList.remove('fa-chevron-right');
+                icon.classList.add('fa-chevron-down');
+            } else {
+                content.style.display = 'none';
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-right');
+            }
+        }
+
+        async function handleUpload(e) {
+            e.preventDefault();
+            const fileInput = document.getElementById('file');
+            const folderInput = document.getElementById('folder_name');
+            if(fileInput.files.length === 0) return;
+
+            const formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+            formData.append("folder_name", folderInput.value);
+
+            document.getElementById('loadingOverlay').style.display = 'flex';
+
+            try {
+                let res = await fetch(`${API_BASE}/api/upload`, { 
+                    method: "POST", 
+                    headers: { 'Authorization': 'Bearer ' + getToken() },
+                    body: formData 
+                });
+                if (res.status === 401) { logout(); return; }
+                let data = await res.json();
+                
+                document.getElementById('loadingOverlay').style.display = 'none';
+                showAlert(data.success ? `✅ Tải lên thành công!` : `❌ ${data.error}`);
+                
+                fileInput.value = "";
+                folderInput.value = "";
+                document.getElementById('file-label').innerHTML = '<i class="fa-solid fa-plus"></i> Chọn File...';
+                document.getElementById('file-label').style.background = 'var(--primary)';
+                document.getElementById('submit-btn').classList.add('d-none');
+                
+                if(window.innerWidth < 768) switchTab('files', document.querySelector('.mobile-nav .nav-link')); 
+                
+                setTimeout(() => { fetchFiles(); }, 1000);
+            } catch (err) {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                showAlert(`❌ Lỗi kết nối server: ${err.message}`);
+            }
+        }
+
+        function copyShareLink(secureUrl) {
+            let fullUrl = secureUrl.startsWith('http') ? secureUrl : window.location.origin + secureUrl;
+            navigator.clipboard.writeText(fullUrl).then(function() {
+                showAlert(`🔗 Đã copy link chia sẻ (kèm Token truy cập)!`);
+            }).catch(function(err) {
+                prompt("Hãy copy link chia sẻ dưới đây:", fullUrl);
+            });
+        }
+
+        function prepareDownload(url) {
+            var modal = new bootstrap.Modal(document.getElementById('downloadPrepModal'));
+            modal.show();
+            let iframe = document.createElement("iframe");
+            iframe.style.display = "none";
+            iframe.src = url;
+            document.body.appendChild(iframe);
+            setTimeout(() => { modal.hide(); document.body.removeChild(iframe); }, 3000);
+        }
+
+        function switchTab(tabName, btn) {
+            document.querySelectorAll('.mobile-nav .nav-link').forEach(el => el.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('tab-upload').classList.remove('active');
+            document.getElementById('tab-files').classList.remove('active');
+            document.getElementById('tab-' + tabName).classList.add('active');
+        }
+
+        function filterCategory(value, btn) {
+            btn.parentElement.querySelectorAll('.filter-btn').forEach(el => el.classList.remove('active'));
+            btn.classList.add('active');
+            currentCategory = value;
+            applyCategoryFilter();
+        }
+
+        function applyCategoryFilter() {
+            document.querySelectorAll('.file-item').forEach(card => {
+                let cat = card.getAttribute('data-category');
+                let match = false;
+                
+                if (currentCategory === 'all') match = true;
+                else if (currentCategory === 'document' && ['pdf', 'word', 'excel', 'powerpoint', 'code'].includes(cat)) match = true;
+                else if (currentCategory === 'other' && ['app', 'other'].includes(cat)) match = true;
+                else if (currentCategory === cat) match = true;
+                
+                card.style.display = match ? 'flex' : 'none';
+            });
+        }
+
+        function updateFileName() {
+            var input = document.getElementById('file');
+            var label = document.getElementById('file-label');
+            if (input.files.length > 0) {
+                label.innerHTML = '<i class="fa-solid fa-check"></i> ' + input.files[0].name;
+                label.style.background = '#2ecc71';
+                document.getElementById('submit-btn').classList.remove('d-none');
+            }
+        }
+
+        function showPreview(url, type) {
+            const container = document.getElementById('previewContainer');
+            if (type === 'image') {
+                container.innerHTML = `<img src="${url}" class="img-fluid rounded shadow-lg" style="max-height: 80vh; object-fit: contain;">`;
+            } else if (type === 'video') {
+                container.innerHTML = `<video src="${url}" controls autoplay class="w-100 rounded shadow-lg" style="max-height: 80vh; background: #000;"></video>`;
+            } else if (type === 'audio') {
+                container.innerHTML = `<div class="bg-white p-4 rounded shadow-lg w-100" style="max-width: 400px;"><i class="fa-solid fa-music text-warning mb-3" style="font-size: 4rem;"></i><br><audio src="${url}" controls autoplay class="w-100"></audio></div>`;
+            } else if (type === 'iframe') {
+                container.innerHTML = `<iframe src="${url}" class="w-100 h-100 rounded shadow-lg" style="border: none; background: white; min-height: 75vh;"></iframe>`;
+            }
+            new bootstrap.Modal(document.getElementById('previewModal')).show();
+        }
+        
+        function clearPreview() { document.getElementById('previewContainer').innerHTML = ''; }
+
+        function showAlert(msg) {
+            document.getElementById('alertMessage').innerText = msg;
+            document.getElementById('alertContainer').style.display = 'block';
+            setTimeout(() => document.getElementById('alertContainer').style.display = 'none', 3000);
+        }
+    </script>
+</body>
+</html>
